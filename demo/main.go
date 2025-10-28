@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
 	"io"
 	"iter"
 	"os"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/enckrish/library"
 )
@@ -83,6 +87,43 @@ func backToWordStart(file *os.File, offset int64) int64 {
 	return 0
 }
 
+func ScanWords2(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	// Skip leading spaces.
+	start := 0
+	for width := 0; start < len(data); start += width {
+		var r rune
+		r, width = utf8.DecodeRune(data[start:])
+		if !(unicode.IsSpace(r) || r == '.') {
+			break
+		}
+	}
+	// Scan until space, marking end of word.
+	for width, i := 0, start; i < len(data); i += width {
+		var r rune
+		r, width = utf8.DecodeRune(data[i:])
+		if unicode.IsSpace(r) || r == '.' {
+			return i + width, data[start:i], nil
+		}
+	}
+	// If we're at EOF, we have a final, non-empty, non-terminated word. Return it.
+	if atEOF && len(data) > start {
+		return len(data), data[start:], nil
+	}
+	// Request more data.
+	return start, nil, nil
+}
+
+func GetStartOffset(file *os.File, totalMappers, mapId int32) int64 {
+	fileInfo, err := file.Stat()
+	if err != nil {
+		panic(err)
+	}
+	sz := fileInfo.Size()
+	start := (sz / int64(totalMappers)) * int64(mapId)
+
+	start = backToWordStart(file, start)
+	return start
+}
 func parse(filePath string, totalMappers int32, mapId int32) iter.Seq2[string, string] {
 	// Read the file
 	file, err := os.Open(filePath)
@@ -90,37 +131,30 @@ func parse(filePath string, totalMappers int32, mapId int32) iter.Seq2[string, s
 		panic(err)
 	}
 
-	fileInfo, err := file.Stat()
+	start := GetStartOffset(file, totalMappers, mapId)
+	end := GetStartOffset(file, totalMappers, mapId+1)
+	_, err = file.Seek(start, 0)
 	if err != nil {
-		panic(err)
+		panic(nil)
 	}
 
-	sz := int32(fileInfo.Size())
-	start := int64((sz / totalMappers) * mapId)
-	end := int64((sz / totalMappers) * (mapId + 1))
-
-	start = backToWordStart(file, start)
-	end = backToWordStart(file, end)
-
-	buf := make([]byte, end-start)
-	_, err = file.ReadAt(buf, start)
-	if err != nil {
-		panic(err)
-	}
-
-	st := string(buf)
-	st = strings.ToLower(st)
-	words := strings.Fields(strings.ReplaceAll(st, ".", " "))
+	scanner := bufio.NewScanner(file)
+	scanner.Split(ScanWords2)
+	offset := start
 	return func(yield func(string, string) bool) {
-		for _, w := range words {
-			w = strings.TrimSpace(w)
-			//if w == "optio" {
-			//	fmt.Println("optio found parser")
-			//}
+		for scanner.Scan() {
+			w := scanner.Text()
+			offset += int64(len(w))
+			if offset > end {
+				break
+			}
+			w = strings.ToLower(w)
 			if !yield(filePath, w) {
 				break
 			}
-
+		}
+		if scanner.Err() != nil {
+			fmt.Println(scanner.Err())
 		}
 	}
 }

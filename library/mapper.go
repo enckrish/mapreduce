@@ -23,7 +23,7 @@ func NewMapper(obj *Object) *Mapper {
 }
 
 func (m *Mapper) Run() error {
-	log.SetPrefix(fmt.Sprintf("%-11s: ", fmt.Sprintf("Mapper	%3d", m.obj.params.MapperId)))
+	log.SetPrefix(fmt.Sprintf("%-11s: ", fmt.Sprintf("Mapper	%4d", m.obj.params.MapperId)))
 
 	params := m.obj.Params()
 	it := m.obj.Parser()(params.InputPath, params.NumMappers, params.MapperId)

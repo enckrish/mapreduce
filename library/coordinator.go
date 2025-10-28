@@ -15,7 +15,7 @@ import (
 )
 
 const ExecutorsListPath = "/.mapreduce_executors"
-const CoordinatorRPCPort = ":9000"
+const CoordinatorRPCPort = ":9001"
 
 type Coordinator struct {
 	obj           *Object
