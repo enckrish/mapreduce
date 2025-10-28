@@ -35,6 +35,7 @@ type Coordinator struct {
 }
 
 func NewCoordinator(obj *Object) *Coordinator {
+	log.SetPrefix(fmt.Sprintf("%-11s: ", "Coordinator"))
 	c := &Coordinator{
 		obj:        obj,
 		redStreams: make([]grpc.ServerStreamingServer[MapCompleted], 0),
@@ -52,7 +53,6 @@ func NewCoordinator(obj *Object) *Coordinator {
 }
 
 func (c *Coordinator) Run() error {
-	log.SetPrefix(fmt.Sprintf("Coordinator\t%4d: ", 0))
 	c.finished.Lock()
 	c.startRPCServer()
 	time.Sleep(0 * time.Second)

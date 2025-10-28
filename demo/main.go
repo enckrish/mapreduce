@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"iter"
 	"os"
@@ -132,10 +131,6 @@ func mapfn(m *library.Mapper, k, v string) {
 }
 
 func redfn(r *library.Reducer, k string, vs []string) {
-	//fmt.Println("redfn called on key:", k, "with values:", vs)
-	if k == "optio" {
-		fmt.Println("optio found red")
-	}
 	r.Emit(k, strconv.Itoa(len(vs)))
 }
 

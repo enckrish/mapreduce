@@ -30,7 +30,7 @@ func NewReducer(obj *Object) *Reducer {
 }
 
 func (r *Reducer) Run() error {
-	log.SetPrefix(fmt.Sprintf("Reducer\t%4d: ", r.obj.params.Partition))
+	log.SetPrefix(fmt.Sprintf("%-11s: ", fmt.Sprintf("Reducer	%3d", r.obj.params.Partition)))
 	conn, err := grpc.NewClient(r.obj.params.CoordinatorAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		panic(err)
@@ -46,7 +46,6 @@ func (r *Reducer) Run() error {
 	}
 	log.Println("Registered Reducer")
 
-	r.processingLock.Lock()
 	go r.ProcessMapCompletions()
 
 	for {
@@ -72,7 +71,6 @@ func (r *Reducer) Run() error {
 	if err != nil {
 		panic(err)
 	}
-	r.processingLock.Unlock()
 
 	log.Println("Commit completed. Sending NotifyReduceCompleted message.")
 	_, err = client.NotifyReduceCompleted(context.Background(), &ReduceCompleted{
@@ -86,25 +84,39 @@ func (r *Reducer) Run() error {
 
 func (r *Reducer) ProcessMapCompletions() {
 	// read from mapTasks channel
+	r.processingLock.Lock()
 	for mId := range r.mapTasks {
+		log.Println("Processing map:", mId)
+		//time.Sleep(10 * time.Second)
 		outp := GetMapOutputPath(r.obj.params.TaskID, mId, r.obj.params.Partition)
 
 		file, err := DownloadGFSFile(outp, "")
 		if err != nil {
 			panic("failed to download map output")
 		}
-
+		//b := make([]byte, 1024)
+		//file.Read(b)
 		// Read the downloaded file and print it line by line (without using Parser)
 		scanner := bufio.NewScanner(file)
-
+		scanner.Split(bufio.ScanLines)
+		buf := make([]byte, 0, 64*1024)
+		scanner.Buffer(buf, 64*1024*1024)
 		for scanner.Scan() {
 			line := scanner.Text()
 			kvals := strings.Split(line, StringSeparator)
 			if len(kvals) < 2 {
+				fmt.Println("invalid line:", line)
 				panic("invalid line")
 			}
+
 			r.obj.reducer(r, kvals[0], kvals[1:])
 		}
+
+		if scanner.Err() != nil {
+			panic(scanner.Err())
+		}
+
+		log.Println("Finished map:", mId)
 	}
 	r.processingLock.Unlock()
 }
