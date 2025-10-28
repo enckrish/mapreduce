@@ -7,16 +7,18 @@ import (
 	"io"
 	"log"
 	"strings"
+	"sync"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 type Reducer struct {
-	obj          *Object
-	mapTasks     chan int32
-	store        map[string]string
-	mapTasksDone int32
+	obj            *Object
+	mapTasks       chan int32
+	store          map[string]string
+	mapTasksDone   int32
+	processingLock sync.Mutex
 }
 
 func NewReducer(obj *Object) *Reducer {
@@ -44,6 +46,7 @@ func (r *Reducer) Run() error {
 	}
 	log.Println("Registered Reducer")
 
+	r.processingLock.Lock()
 	go r.ProcessMapCompletions()
 
 	for {
@@ -63,11 +66,13 @@ func (r *Reducer) Run() error {
 	}
 	close(r.mapTasks)
 
+	r.processingLock.Lock()
 	log.Println("Reducer done. Committing store to disk.")
 	err = r.CommitStore()
 	if err != nil {
 		panic(err)
 	}
+	r.processingLock.Unlock()
 
 	log.Println("Commit completed. Sending NotifyReduceCompleted message.")
 	_, err = client.NotifyReduceCompleted(context.Background(), &ReduceCompleted{
@@ -101,6 +106,7 @@ func (r *Reducer) ProcessMapCompletions() {
 			r.obj.reducer(r, kvals[0], kvals[1:])
 		}
 	}
+	r.processingLock.Unlock()
 }
 
 func (r *Reducer) Emit(key string, value string) {

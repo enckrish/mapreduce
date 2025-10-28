@@ -2,7 +2,6 @@ package library
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
@@ -13,7 +12,7 @@ import (
 const GFSRoot = "/tmp/mapreduce/gfs"
 
 // StringSeparator All values in a map output file in single line are separated by this string
-const StringSeparator = "xSEP\tSEPx"
+const StringSeparator = "%"
 
 // GetMapOutputPath TODO placeholder
 func GetMapOutputPath(taskId string, mapId, partition int32) string {
@@ -67,39 +66,4 @@ func GetOutboundIP() net.IP {
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 
 	return localAddr.IP
-}
-
-// CopyFile copies the file from src to dst, preserving permissions.
-// It overwrites dst if it exists.
-func CopyFile(src, dst string) error {
-	// open source
-	// if dst
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	// get source file mode
-	info, err := in.Stat()
-	if err != nil {
-		return err
-	}
-
-	// create/overwrite destination with same permissions
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode().Perm())
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = out.Close()
-	}()
-
-	// copy data
-	if _, err := io.Copy(out, in); err != nil {
-		return err
-	}
-
-	// ensure data is flushed to disk
-	return out.Sync()
 }

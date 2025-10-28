@@ -15,7 +15,9 @@ import (
 )
 
 const Port = 4000 // global constant port number
-const Timeout = 15 * time.Second
+const Timeout = 60 * time.Second
+
+var createLock sync.Mutex
 
 func main() {
 	addr := fmt.Sprintf(":%d", Port)
@@ -35,7 +37,6 @@ func main() {
 }
 
 func handleConn(conn net.Conn) {
-
 	// explicitly ignore Close() errors to satisfy linters
 	defer func() { _ = conn.Close() }()
 
@@ -85,6 +86,7 @@ func handleConn(conn net.Conn) {
 		}
 	}
 
+	createLock.Lock()
 	// Write exe to temp file
 	tmpFile, err := os.CreateTemp("", "remexec-*")
 	if err != nil {
@@ -135,6 +137,8 @@ func handleConn(conn net.Conn) {
 		log.Printf("start cmd: %v", err)
 		return
 	}
+
+	createLock.Unlock()
 
 	type frame struct {
 		typ  byte   // 0=stdout,1=stderr,2=exit
