@@ -15,7 +15,7 @@ import (
 )
 
 const ExecutorsListPath = "/.mapreduce_executors"
-const CoordinatorRPCPort = ":9001"
+const CoordinatorRPCPort = ":9000"
 
 type Coordinator struct {
 	obj           *Object
@@ -110,24 +110,32 @@ func (c *Coordinator) setupReducers() {
 		p := c.obj.params.Copy()
 		p.Mode = ModeReduce
 		p.Partition = i
+		p.MapperId = -1
+		log.Println("Assigning reducer for Partition", i, c.executors[exec].maxJobs)
 		go c.executors[exec].AssignJob(p, c.avblExecutors)
-		log.Println("Assigned reducer for Partition", i)
 	}
-	log.Println("All reducers assigned")
 }
 
 func (c *Coordinator) runMappers() {
 	// Assign mappers
 	for i := range c.obj.params.NumMappers {
-		exec := <-c.avblExecutors
 
 		p := c.obj.params.Copy()
 		p.Mode = ModeMap
+		p.Partition = -1
 		p.MapperId = i
-		go c.executors[exec].AssignJob(p, c.avblExecutors)
-		log.Println("Assigned mapper for Partition", i)
+
+		// Naive fault-tolerance implementation
+		go func(params *TaskParams) {
+			exec := <-c.avblExecutors
+			log.Println("Assigning mapper for Partition", i)
+			for !(c.executors[exec].AssignJob(params, c.avblExecutors)) {
+				log.Println("Reassigning mapper for mapId", params.MapperId, len(c.avblExecutors))
+				exec = <-c.avblExecutors
+			}
+		}(p)
+
 	}
-	log.Println("All mappers assigned")
 }
 
 func (c *Coordinator) startRPCServer() {

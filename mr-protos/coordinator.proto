@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+message Empty {}
+
+message MapCompleted {
+  // ID of the mapper who completed the task
+  // The location of the completed map task can be inferred from the ID
+  int32 id = 1;
+}
+
+message ReduceCompleted {
+  // Partition of the reducer who completed the task
+  // The location of the completed reduce task can be inferred from the partition
+  int32 partition = 1;
+}
+
+
+service CoordinatorService {
+  // Used by reducer to register itself with the coordinator.
+  rpc RegisterReducer(Empty) returns (stream MapCompleted);
+  // Used by the mapper to notify the coordinator of a completed map task.
+  rpc NotifyMapCompleted(MapCompleted) returns (Empty);
+  // Used by the reducer to notify the coordinator of a completed reduce task.
+  rpc NotifyReduceCompleted(ReduceCompleted) returns (Empty);
+}
+

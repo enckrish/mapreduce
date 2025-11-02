@@ -1,6 +1,7 @@
 package library
 
 import (
+	"log"
 	"sync"
 	"time"
 )
@@ -28,18 +29,26 @@ func (ee *Executor) AssignJob(params *TaskParams, execChan chan<- string) bool {
 	}
 	ee.lock.Lock()
 	ee.maxJobs--
-	if ee.maxJobs > 0 {
+	currCap := ee.maxJobs
+	if currCap > 0 {
 		// if the executor is still available, put it back to the available executors channel
 		execChan <- ee.addr
 	}
 	ee.lock.Unlock()
 
-	_, err := SubmitTask(ee.addr, params)
+	ec, err := SubmitTask(ee.addr, params)
+	if err != nil {
+		if params.Partition != -1 {
+			log.Printf("Reducer for partition %d exited with errCode %d and error %s", params.Partition, ec, err)
+		} else if params.MapperId != -1 {
+			log.Printf("Mapper with id %d exited with errCode %d and error %s", params.MapperId, ec, err)
+		}
+	}
 
 	ee.lock.Lock()
 	ee.maxJobs++
 	// if the executor just become available again, add it back to the available executors channel
-	if ee.maxJobs == 1 {
+	if currCap == 0 {
 		execChan <- ee.addr
 	}
 	ee.lock.Unlock()

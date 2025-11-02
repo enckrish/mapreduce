@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -14,29 +15,32 @@ import (
 	"time"
 )
 
-const Port = 4000 // global constant port number
-const Timeout = 60 * time.Second
-
 var createLock sync.Mutex
 
 func main() {
-	addr := fmt.Sprintf(":%d", Port)
+	port := flag.Int("port", 4000, "port to listen on")
+	timeout := flag.Int("timeout", int(15*time.Second), "timeout for exec'ed call")
+	flag.Parse()
+	*timeout *= int(time.Second)
+
+	addr := fmt.Sprintf(":%d", *port)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatalf("listen: %v", err)
 	}
-	log.Printf("listening on %s", addr)
+	log.Println("listening on", addr)
+	log.Println("configured timeout:", time.Duration(*timeout).Seconds(), "seconds")
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
 			log.Printf("accept: %v", err)
 			continue
 		}
-		go handleConn(conn)
+		go handleConn(conn, time.Duration(*timeout))
 	}
 }
 
-func handleConn(conn net.Conn) {
+func handleConn(conn net.Conn, timeout time.Duration) {
 	// explicitly ignore Close() errors to satisfy linters
 	defer func() { _ = conn.Close() }()
 
@@ -111,8 +115,7 @@ func handleConn(conn net.Conn) {
 	defer func() { _ = os.Remove(path) }()
 
 	// Run the executable with a timeout and stream its output
-	// TODO this may need to be more configurable
-	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, path, params...)
 
