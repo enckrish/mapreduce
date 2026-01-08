@@ -124,6 +124,7 @@ func GetStartOffset(file *os.File, totalMappers, mapId int32) int64 {
 	start = backToWordStart(file, start)
 	return start
 }
+
 func parse(filePath string, totalMappers int32, mapId int32) iter.Seq2[string, string] {
 	// Read the file
 	file, err := os.Open(filePath)

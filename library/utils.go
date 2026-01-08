@@ -9,18 +9,18 @@ import (
 	"strconv"
 )
 
-const GFSRoot = "/tmp/mapreduce/gfs"
+const GFSRoot = "/tmp/gfs"
 
 // StringSeparator All values in a map output file in single line are separated by this string
 const StringSeparator = "%"
 
 // GetMapOutputPath TODO placeholder
 func GetMapOutputPath(taskId string, mapId, partition int32) string {
-	return GFSRoot + "/tmp/mapreduce/" + taskId + "/map_" + strconv.Itoa(int(mapId)) + "_part_" + strconv.Itoa(int(partition)) + ".out"
+	return GFSRoot + "/mapreduce/" + taskId + "/map_" + strconv.Itoa(int(mapId)) + "_part_" + strconv.Itoa(int(partition)) + ".out"
 }
 
 func GetReduceOutputPath(taskId string, partition int32) string {
-	return GFSRoot + "/tmp/mapreduce/" + taskId + "/reduce_" + strconv.Itoa(int(partition)) + ".out"
+	return GFSRoot + "/mapreduce/" + taskId + "/reduce_" + strconv.Itoa(int(partition)) + ".out"
 }
 
 func DownloadGFSFile(path, localPath string) (*os.File, error) {

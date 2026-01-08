@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"google.golang.org/grpc"
 )
@@ -55,7 +54,6 @@ func NewCoordinator(obj *Object) *Coordinator {
 func (c *Coordinator) Run() error {
 	c.finished.Lock()
 	c.startRPCServer()
-	time.Sleep(0 * time.Second)
 
 	c.redsAwakeWg.Add(int(c.obj.params.NumPartitions))
 	c.mapsDoneWg.Add(int(c.obj.params.NumMappers))
@@ -63,7 +61,7 @@ func (c *Coordinator) Run() error {
 	// We setup reducers first, so that they are always ready to receive
 	c.setupReducers()
 	c.redsAwakeWg.Wait()
-	//// Mappers may be reassigned to a different MapperId once the prior is finished
+	// Mappers may be reassigned to a different MapperId once the prior is finished
 	c.runMappers()
 
 	c.finished.Lock()

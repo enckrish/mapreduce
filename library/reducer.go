@@ -87,16 +87,12 @@ func (r *Reducer) ProcessMapCompletions() {
 	r.processingLock.Lock()
 	for mId := range r.mapTasks {
 		log.Println("Processing map:", mId)
-		//time.Sleep(10 * time.Second)
 		outp := GetMapOutputPath(r.obj.params.TaskID, mId, r.obj.params.Partition)
 
 		file, err := DownloadGFSFile(outp, "")
 		if err != nil {
 			panic("failed to download map output")
 		}
-		//b := make([]byte, 1024)
-		//file.Read(b)
-		// Read the downloaded file and print it line by line (without using Parser)
 		scanner := bufio.NewScanner(file)
 		scanner.Split(bufio.ScanLines)
 		buf := make([]byte, 0, 64*1024)
@@ -136,7 +132,6 @@ func (r *Reducer) CommitStore() error {
 	}
 	data := strings.Join(lines, "\n")
 
-	// TODO Write data to GFS at filePath
 	SaveToGFS(filePath, []byte(data))
 	return nil
 }
